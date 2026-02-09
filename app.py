@@ -24,6 +24,12 @@ import string
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here_change_in_production'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+def check_is_mobile():
+    """检测是否为移动端设备"""
+    ua = request.headers.get('User-Agent', '').lower()
+    return 'mobile' in ua or 'android' in ua or 'iphone' in ua
+
 @app.before_request
 def require_login():
     if request.path.startswith('/static') or request.path.startswith('/jk/') or request.path.startswith('/sub') or request.path.startswith('/playlist') or (request.endpoint in ['authorize', 'api_authorize', 'login', 'setup', 'api_logs']):
@@ -58,6 +64,9 @@ def authorize():
                 flash('授权密钥无效，请检查后重试', 'danger')
         else:
             flash('请输入授权密钥', 'danger')
+    # 适配移动端
+    if check_is_mobile():
+        return render_template('mobile_authorize.html')
     return render_template('authorize.html')
 @app.route('/api/authorize', methods=['POST'])
 def api_authorize():
@@ -83,6 +92,9 @@ def login():
             return redirect(url_for('index'))
         else:
             flash('密码错误', 'danger')
+    # 适配移动端
+    if check_is_mobile():
+        return render_template('mobile_login.html')
     return render_template('login.html')
 @app.route('/logout')
 def logout():
@@ -101,6 +113,9 @@ def setup():
                 return redirect(url_for('index'))
             else:
                 flash('密码不能为空', 'danger')
+        # 适配移动端
+        if check_is_mobile():
+            return render_template('mobile_setup.html')
         return render_template('setup.html')
 @app.route('/api/change_password', methods=['POST'])
 def api_change_password():
@@ -271,6 +286,8 @@ def collection():
     return redirect(url_for('ip_manager'))
 @app.route('/auto')
 def auto():
+    if check_is_mobile():
+        return render_template('mobile_auto.html', active_tab='auto')
     return render_template('auto.html', active_tab='auto')
 @app.route('/ip_manager')
 def ip_manager():
@@ -280,12 +297,21 @@ def ip_manager():
     keyword = request.args.get('keyword', '').strip()
     ips, total = database.get_ips(page, per_page, filter_type, keyword)
     total_pages = (total + per_page - 1) // per_page
+    
+    # 适配移动端
+    if check_is_mobile():
+        return render_template('mobile_ip_manager.html', active_tab='ip_manager', ips=ips, page=page, per_page=per_page, total_pages=total_pages, total_items=total, filter_type=filter_type, keyword=keyword)
+        
     return render_template('ip_manager.html', active_tab='ip_manager', ips=ips, page=page, per_page=per_page, total_pages=total_pages, total_items=total, filter_type=filter_type, keyword=keyword)
 @app.route('/logs')
 def logs():
+    if check_is_mobile():
+        return render_template('mobile_logs.html', active_tab='logs')
     return render_template('logs.html', active_tab='logs')
 @app.route('/settings')
 def settings():
+    if check_is_mobile():
+        return render_template('mobile_settings.html', active_tab='settings')
     return render_template('settings.html', active_tab='settings')
 @app.route('/api/collect', methods=['POST'])
 def api_collect():
@@ -329,6 +355,8 @@ def api_stop_collection():
         return jsonify({'status': 'error', 'message': str(e)})
 @app.route('/subscriptions')
 def subscriptions():
+    if check_is_mobile():
+        return render_template('mobile_subscriptions.html', active_tab='subscriptions')
     return render_template('subscriptions.html', active_tab='subscriptions')
 @app.route('/api/subscriptions/list')
 def api_list_subscriptions():

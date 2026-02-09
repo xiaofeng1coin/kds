@@ -1,0 +1,21 @@
+{% extends "mobile_base.html" %}
+{% block content %}
+<div class="card border-0 shadow-sm" style="height: calc(100vh - 140px);">
+    <div class="card-header bg-white d-flex justify-content-between">
+        <span class="fw-bold">系统日志</span>
+        <a href="javascript:load()" class="text-decoration-none">刷新</a>
+    </div>
+    <div class="card-body p-0">
+        <div id="logs" class="p-2 small text-muted" style="height: 100%; overflow-y: auto; font-family: monospace;"></div>
+    </div>
+</div>
+<script>
+    load();
+    function load() {
+        document.getElementById('logs').innerHTML = '加载中...';
+        fetch('/api/get_system_logs').then(r=>r.json()).then(d => {
+            document.getElementById('logs').innerHTML = d.logs.join('<br>');
+        });
+    }
+</script>
+{% endblock %}

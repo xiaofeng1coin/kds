@@ -1,0 +1,230 @@
+{% extends "mobile_base.html" %}
+
+{% block content %}
+<div id="subList">
+    <!-- 动态加载 -->
+    <div class="text-center mt-5 text-muted">加载中...</div>
+</div>
+
+<!-- 底部悬浮添加按钮 -->
+<button class="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center" 
+        style="position: fixed; bottom: 80px; right: 20px; width: 55px; height: 55px; z-index: 1040;"
+        onclick="openSubModal()">
+    <i class="bi bi-plus-lg fs-3"></i>
+</button>
+
+<!-- 订阅编辑弹窗 -->
+<div class="modal fade" id="subModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="subModalTitle">新增订阅</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="subForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Token</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="mToken" placeholder="留空自动生成">
+                            <button class="btn btn-outline-secondary" type="button" onclick="genToken()">随机</button>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3 border-0 shadow-sm">
+                        <div class="card-header bg-white fw-bold">类型过滤</div>
+                        <div class="card-body p-2" id="mTypes" style="max-height: 150px; overflow-y: auto;">
+                            <!-- JS填充 -->
+                        </div>
+                    </div>
+
+                    <div class="card mb-3 border-0 shadow-sm">
+                        <div class="card-header bg-white fw-bold">省份过滤</div>
+                        <div class="card-body p-2" id="mProvinces" style="max-height: 200px; overflow-y: auto;">
+                            <!-- JS填充 -->
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white fw-bold">运营商过滤</div>
+                        <div class="card-body p-2" id="mIsps">
+                            <!-- JS填充 -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary px-4" onclick="saveSubscription()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allData = { types:[], provinces:[], isps:[] };
+    let isEdit = false;
+
+    // 初始化加载
+    loadList();
+
+    function loadList() {
+        fetch('/api/subscriptions/list').then(r=>r.json()).then(data => {
+            allData.types = data.all_types || [];
+            allData.provinces = data.all_provinces || [];
+            allData.isps = data.all_isps || [];
+            renderList(data.subscriptions);
+        });
+    }
+
+    function renderList(subs) {
+        const el = document.getElementById('subList');
+        if(!subs.length) {
+            el.innerHTML = '<div class="text-center text-muted mt-5"><i class="bi bi-inbox display-1"></i><p class="mt-3">暂无订阅，点击右下角添加</p></div>';
+            return;
+        }
+        el.innerHTML = subs.map(s => `
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-info text-dark font-monospace fs-6">${s.token}</span>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                <li><a class="dropdown-item" href="javascript:openSubModal('${s.token}')">编辑</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="javascript:del('${s.token}')">删除</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="text-muted small mb-3">
+                        <div>类型: ${s.types.length ? s.types.join(',') : '全部'}</div>
+                        <div>地区: ${s.provinces.length ? (s.provinces.length>3?s.provinces.length+'个地区':s.provinces.join(',')) : '全部'}</div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="copyLink('${s.token}', 'txt')">
+                            <i class="bi bi-file-text"></i> TXT
+                        </button>
+                        <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="copyLink('${s.token}', 'm3u')">
+                            <i class="bi bi-collection-play"></i> M3U
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 兼容性更好的复制函数
+    function copyLink(token, fmt) {
+        const url = `${location.origin}/sub?${token}=${fmt}`;
+        
+        // 优先尝试现代API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(() => {
+                Swal.fire({ toast: true, position: 'top', icon: 'success', title: '已复制', showConfirmButton: false, timer: 1500 });
+            }).catch(() => fallbackCopy(url));
+        } else {
+            fallbackCopy(url);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            Swal.fire({ toast: true, position: 'top', icon: 'success', title: '已复制', showConfirmButton: false, timer: 1500 });
+        } catch (err) {
+            Swal.fire('复制失败', '请手动复制链接:<br>' + text, 'error');
+        }
+        document.body.removeChild(textArea);
+    }
+
+    // 打开编辑/新增弹窗
+    window.openSubModal = function(token = null) {
+        isEdit = !!token;
+        document.getElementById('subModalTitle').innerText = isEdit ? '编辑订阅' : '新增订阅';
+        document.getElementById('mToken').value = token || '';
+        document.getElementById('mToken').readOnly = isEdit;
+        
+        // 渲染选项
+        renderChecks('mTypes', allData.types);
+        renderChecks('mProvinces', allData.provinces);
+        renderChecks('mIsps', allData.isps);
+
+        // 如果是编辑，需回显选中状态 (这里为了简化，移动端暂不回显复杂的选中项，或需要再次请求获取详情。
+        // 为了体验，我们假设数据在本地，简单处理：)
+        // 实际上PC端逻辑是：获取列表时已经带了 types/provinces 等数据。我们遍历列表找到当前对象回显。
+        if(isEdit) {
+            fetch('/api/subscriptions/list').then(r=>r.json()).then(d => {
+                const sub = d.subscriptions.find(s => s.token === token);
+                if(sub) {
+                    sub.types.forEach(v => checkVal('mTypes', v));
+                    sub.provinces.forEach(v => checkVal('mProvinces', v));
+                    (sub.isps||[]).forEach(v => checkVal('mIsps', v));
+                }
+            });
+        }
+
+        new bootstrap.Modal(document.getElementById('subModal')).show();
+    }
+
+    function renderChecks(id, list) {
+        const c = document.getElementById(id);
+        c.innerHTML = list.map(v => `
+            <div class="form-check form-check-inline mb-2">
+                <input class="form-check-input" type="checkbox" value="${v}" id="${id}_${v}">
+                <label class="form-check-label small" for="${id}_${v}">${v}</label>
+            </div>
+        `).join('');
+    }
+
+    function checkVal(containerId, val) {
+        const el = document.getElementById(`${containerId}_${val}`);
+        if(el) el.checked = true;
+    }
+
+    function genToken() {
+        document.getElementById('mToken').value = Math.random().toString(36).substr(2, 8);
+    }
+
+    function saveSubscription() {
+        const token = document.getElementById('mToken').value.trim();
+        if(!token) return Swal.fire('提示', '请输入Token', 'warning');
+
+        const getChecked = (id) => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(c => c.value);
+        
+        const payload = {
+            token: token,
+            types: getChecked('mTypes'),
+            provinces: getChecked('mProvinces'),
+            isps: getChecked('mIsps')
+        };
+
+        const url = isEdit ? '/api/subscriptions/update' : '/api/subscriptions/create';
+        fetch(url, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(d => {
+            if(d.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('subModal')).hide();
+                loadList();
+                Swal.fire('成功', d.message, 'success');
+            } else Swal.fire('失败', d.message, 'error');
+        });
+    }
+
+    async function del(token) {
+        if(await asyncSwalConfirm('删除订阅?', '确认删除此订阅配置')) {
+            fetch('/api/subscriptions/delete', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token})
+            }).then(() => loadList());
+        }
+    }
+</script>
+{% endblock %}

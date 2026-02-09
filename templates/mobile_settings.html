@@ -1,0 +1,122 @@
+{% extends "mobile_base.html" %}
+
+{% block content %}
+<!-- 常规设置 -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-bold py-3">核心配置</div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <label class="form-label mb-0">自动删除失效源</label>
+                <div class="form-text small mt-0">检测失败后是否从数据库移除</div>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autoDeleteFailed" style="width: 3em; height: 1.5em;">
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label small text-muted fw-bold">失效阈值 (次)</label>
+            <input type="number" class="form-control" id="failureThreshold">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small text-muted fw-bold">EPG 接口地址</label>
+            <input type="text" class="form-control" id="epgUrl" placeholder="http://...">
+        </div>
+        <div class="mb-3">
+            <label class="form-label small text-muted fw-bold">Logo Base URL</label>
+            <input type="text" class="form-control" id="logoUrl" placeholder="http://...">
+        </div>
+        <button class="btn btn-primary w-100" onclick="saveSettings()">保存常规设置</button>
+    </div>
+</div>
+
+<!-- API与维护 -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-bold py-3 text-warning">API与维护</div>
+    <div class="card-body">
+        <div class="d-grid gap-2 mb-3">
+            <div class="btn-group">
+                <button class="btn btn-outline-success" onclick="updateApi()">更新 API 配置</button>
+                <button class="btn btn-outline-secondary" onclick="resetApi()">重置默认</button>
+            </div>
+            <button class="btn btn-outline-info" onclick="checkUpdate()">检查系统更新</button>
+        </div>
+        <div class="d-grid">
+            <a href="/logs" class="btn btn-light border">查看系统日志</a>
+        </div>
+    </div>
+</div>
+
+<!-- 安全设置 -->
+<div class="card border-0 shadow-sm mb-5">
+    <div class="card-header bg-white fw-bold py-3 text-danger">安全与账户</div>
+    <div class="card-body">
+        <div class="mb-2">
+            <input type="password" class="form-control mb-2" id="oldPwd" placeholder="原密码">
+            <input type="password" class="form-control mb-3" id="newPwd" placeholder="新密码">
+            <button class="btn btn-warning w-100 mb-3" onclick="changePassword()">修改密码</button>
+        </div>
+        <hr>
+        <button class="btn btn-danger w-100" onclick="location.href='/logout'">
+            <i class="bi bi-box-arrow-right"></i> 退出登录
+        </button>
+    </div>
+</div>
+
+<script>
+    function loadSettings() {
+        fetch('/api/get_settings').then(r=>r.json()).then(d => {
+            document.getElementById('autoDeleteFailed').checked = d.auto_delete_failed;
+            document.getElementById('failureThreshold').value = d.failure_threshold;
+            document.getElementById('epgUrl').value = d.epg_url;
+            document.getElementById('logoUrl').value = d.logo_url;
+        });
+    }
+    loadSettings();
+
+    function saveSettings() {
+        const payload = {
+            auto_delete_failed: document.getElementById('autoDeleteFailed').checked,
+            failure_threshold: document.getElementById('failureThreshold').value,
+            epg_url: document.getElementById('epgUrl').value,
+            logo_url: document.getElementById('logoUrl').value
+        };
+        fetch('/api/save_settings', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(d => Swal.fire('成功', d.message, 'success'));
+    }
+
+    function changePassword() {
+        const o = document.getElementById('oldPwd').value;
+        const n = document.getElementById('newPwd').value;
+        if(!o || !n) return Swal.fire('错误', '请填写完整', 'error');
+        fetch('/api/change_password', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({old_password:o, new_password:n})
+        }).then(r=>r.json()).then(d => {
+            if(d.status==='success') {
+                Swal.fire('成功', '请重新登录', 'success').then(()=>location.href='/logout');
+            } else Swal.fire('错误', d.message, 'error');
+        });
+    }
+
+    async function updateApi() {
+        if(await asyncSwalConfirm('更新API?', '将从服务器同步最新源规则')) {
+            fetch('/api/update_api', {method:'POST'}).then(r=>r.json()).then(d=>Swal.fire('结果', d.message, 'info'));
+        }
+    }
+
+    async function resetApi() {
+        if(await asyncSwalConfirm('重置API?', '恢复至初始内置规则')) {
+            fetch('/api/reset_api', {method:'POST'}).then(r=>r.json()).then(d=>Swal.fire('结果', d.message, 'info'));
+        }
+    }
+
+    function checkUpdate() {
+        fetch('/api/check_update').then(r=>r.json()).then(d => {
+            if(d.status==='success') Swal.fire({ title: '检查结果', html: d.data.message, icon: 'info' });
+            else Swal.fire('提示', d.message, 'info');
+        });
+    }
+</script>
+{% endblock %}

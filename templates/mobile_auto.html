@@ -1,0 +1,261 @@
+{% extends "mobile_base.html" %}
+
+{% block content %}
+<ul class="nav nav-pills nav-fill mb-3 bg-white p-1 rounded-pill shadow-sm" id="pills-tab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill active" id="pills-manual-tab" data-bs-toggle="pill" data-bs-target="#pills-manual" type="button">手动采集</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill" id="pills-auto-tab" data-bs-toggle="pill" data-bs-target="#pills-auto" type="button">自动任务</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="pills-tabContent">
+    <!-- 手动采集 -->
+    <div class="tab-pane fade show active" id="pills-manual" role="tabpanel">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body text-center py-4">
+                <div id="statusIcon" class="mb-2">
+                    <i class="bi bi-cpu display-4 text-muted"></i>
+                </div>
+                <h6 id="statusText" class="fw-bold mb-0">系统空闲</h6>
+                <small class="text-muted" id="statusSub">等待指令</small>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form id="mobileCollectForm">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-bold">源类型</label>
+                        <select class="form-select" id="apiType">
+                            <option value="all">🚀 全部 (All)</option>
+                            <option value="multicast">📡 组播 (Multicast)</option>
+                            <option value="hotel">🏨 酒店 (Hotel)</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted fw-bold">页数</label>
+                            <input type="number" class="form-control text-center" id="pages" value="5">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted fw-bold">日期 (可选)</label>
+                            <input type="date" class="form-control text-center" id="date">
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary py-2" id="startBtn" onclick="startCollection()">
+                            <i class="bi bi-play-fill"></i> 开始采集
+                        </button>
+                        <button type="button" class="btn btn-danger py-2" id="stopBtn" onclick="stopCollection()" disabled>
+                            <i class="bi bi-stop-fill"></i> 停止
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 简易终端 -->
+        <div class="card bg-dark text-light border-0 mt-3 shadow-sm">
+            <div class="card-body p-2">
+                <div id="logContainer" style="height: 150px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.4;">
+                    <span class="text-muted">> Ready...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动任务配置 -->
+    <div class="tab-pane fade" id="pills-auto" role="tabpanel">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">自动采集配置</h6>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">默认类型</label>
+                    <select class="form-select" id="autoApiType">
+                        <option value="all">全部</option>
+                        <option value="multicast">组播</option>
+                        <option value="hotel">酒店</option>
+                    </select>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small text-muted">采集页数</label>
+                        <input type="number" class="form-control" id="autoPages">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted">回溯天数</label>
+                        <input type="number" class="form-control" id="autoDays">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">定时任务 (24h制)</label>
+                    <div id="scheduleContainer" class="d-flex flex-column gap-2">
+                        <!-- JS动态生成 -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 mt-2 dashed-border" onclick="addScheduleInput()">
+                        <i class="bi bi-plus-lg"></i> 添加时间点
+                    </button>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="saveAutoSettings()">保存配置</button>
+                    <button class="btn btn-info text-white" onclick="showHistory()"><i class="bi bi-clock-history"></i> 运行历史</button>
+                </div>
+                <input type="hidden" id="logRetentionDays" value="7">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashed-border { border: 1px dashed #ced4da; }
+</style>
+
+<script>
+    document.getElementById('date').valueAsDate = new Date();
+
+    // 加载自动设置
+    function loadAutoSettings() {
+        fetch('/api/get_settings').then(r => r.json()).then(data => {
+            document.getElementById('autoApiType').value = data.auto_api_type;
+            document.getElementById('autoPages').value = data.auto_pages;
+            document.getElementById('autoDays').value = data.auto_days;
+            document.getElementById('logRetentionDays').value = data.log_retention_days;
+            
+            const container = document.getElementById('scheduleContainer');
+            container.innerHTML = '';
+            (data.auto_schedules || []).forEach(time => addScheduleInput(time));
+        });
+    }
+    
+    // 初始化加载
+    loadAutoSettings();
+
+    function addScheduleInput(value = '') {
+        const container = document.getElementById('scheduleContainer');
+        if (container.children.length >= 5) return Swal.fire('提示', '最多添加5个任务', 'warning');
+        
+        const div = document.createElement('div');
+        div.className = 'input-group';
+        div.innerHTML = `
+            <span class="input-group-text bg-white"><i class="bi bi-clock"></i></span>
+            <input type="time" class="form-control" value="${value}">
+            <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        container.appendChild(div);
+    }
+
+    function saveAutoSettings() {
+        const schedules = Array.from(document.querySelectorAll('#scheduleContainer input')).map(i => i.value).filter(v=>v);
+        const payload = {
+            auto_api_type: document.getElementById('autoApiType').value,
+            auto_pages: document.getElementById('autoPages').value,
+            auto_days: document.getElementById('autoDays').value,
+            log_retention_days: document.getElementById('logRetentionDays').value,
+            auto_schedules: schedules
+        };
+        fetch('/api/save_settings', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(d => Swal.fire('保存成功', d.message, 'success'));
+    }
+
+    function showHistory() {
+        fetch('/api/get_history_logs').then(r=>r.json()).then(data => {
+            let html = '<div class="list-group list-group-flush text-start">';
+            if(data.logs.length === 0) html += '<div class="p-3 text-center text-muted">暂无历史</div>';
+            else {
+                data.logs.forEach(log => {
+                    html += `
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">${log.date} ${log.collection_time}</small>
+                                <span class="badge bg-light text-dark border">存活 ${log.stock_ip}</span>
+                            </div>
+                            <div class="small mt-1">
+                                <span class="text-success">新增 +${log.collected_ip}</span> | 
+                                <span class="text-primary">更新 ${log.updated_ip}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            html += '</div>';
+            Swal.fire({ title: '运行历史', html: html, showCloseButton: true });
+        });
+    }
+
+    // 采集逻辑
+    function startCollection() {
+        const btn = document.getElementById('startBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 启动中...';
+        
+        const payload = {
+            api_type: document.getElementById('apiType').value,
+            pages: document.getElementById('pages').value,
+            date: document.getElementById('date').value
+        };
+
+        fetch('/api/collect', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        }).then(r => r.json()).then(data => {
+            btn.innerHTML = '运行中...';
+            document.getElementById('stopBtn').disabled = false;
+            updateStatus('running');
+            startLogPolling();
+        });
+    }
+
+    async function stopCollection() {
+        if(await asyncSwalConfirm('停止任务?', '将中断当前进程')) {
+            fetch('/api/stop_collection', { method: 'POST' });
+        }
+    }
+
+    let pollInterval;
+    function startLogPolling() {
+        const logDiv = document.getElementById('logContainer');
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(() => {
+            fetch('/api/logs').then(res => res.json()).then(data => {
+                if (data.logs) {
+                    logDiv.innerHTML = data.logs.map(l => {
+                        let c = '#ccc';
+                        if(l.includes('Error')) c = '#ff6b6b';
+                        else if(l.includes('Success')) c = '#2ecc71';
+                        else if(l.includes('Processing')) c = '#feca57';
+                        return `<div style="color:${c}">${l}</div>`;
+                    }).join('');
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                    
+                    const last = data.logs[data.logs.length-1] || "";
+                    if (last.includes("结束") || last.includes("出错") || last.includes("停止")) {
+                        clearInterval(pollInterval);
+                        document.getElementById('startBtn').disabled = false;
+                        document.getElementById('startBtn').innerHTML = '<i class="bi bi-play-fill"></i> 开始采集';
+                        document.getElementById('stopBtn').disabled = true;
+                        updateStatus('idle');
+                    }
+                }
+            });
+        }, 1000);
+    }
+
+    function updateStatus(state) {
+        const t = document.getElementById('statusText');
+        const i = document.getElementById('statusIcon');
+        if(state === 'running') {
+            i.innerHTML = '<div class="spinner-grow text-primary"></div>';
+            t.innerHTML = '任务运行中'; t.className = 'fw-bold mb-0 text-primary';
+        } else {
+            i.innerHTML = '<i class="bi bi-cpu display-4 text-muted"></i>';
+            t.innerHTML = '系统空闲'; t.className = 'fw-bold mb-0';
+        }
+    }
+</script>
+{% endblock %}
