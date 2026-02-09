@@ -2,3 +2,5 @@ Flask
 requests
 werkzeug
 gevent
+beautifulsoup4
+lxml
