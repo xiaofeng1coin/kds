@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">数据采集设置</h5>
+    </div>
+    <div class="card-body">
+        <form id="collectionForm" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="apiType" class="col-form-label fw-bold">API:</label>
+            </div>
+            <div class="col-auto">
+                <select class="form-select" id="apiType">
+                    <option value="all">全部 (All)</option>
+                    <option value="Tonkiang Multicast">组播 (Multicast)</option>
+                    <option value="Tonkiang Hotel">酒店 (Hotel)</option>
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <label for="pages" class="col-form-label fw-bold">页数:</label>
+            </div>
+            <div class="col-auto">
+                <input type="number" class="form-control" id="pages" value="5" style="width: 80px;">
+            </div>
+
+            <div class="col-auto">
+                <label for="date" class="col-form-label fw-bold">开始日期:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" class="form-control" id="date">
+            </div>
+
+            <div class="col-auto">
+                <button type="button" class="btn btn-primary px-4" id="startBtn"
+                    onclick="startCollection()">采集数据</button>
+                <button type="button" class="btn btn-danger px-4 ms-2" id="stopBtn" onclick="stopCollection()"
+                    disabled>停止采集</button>
+            </div>
+        </form>
+        <div id="statusMessage" class="mt-4"></div>
+    </div>
+    <div class="card-footer bg-white border-top-0">
+        <label class="fw-bold mb-2">运行日志:</label>
+        <div id="logContainer" class="p-3 bg-light border rounded"
+            style="height: 400px; overflow-y: scroll; font-family: monospace; font-size: 0.85em; white-space: pre-wrap;">
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set today's date
+    document.getElementById('date').valueAsDate = new Date();
+
+    function startCollection() {
+        const apiType = document.getElementById('apiType').value;
+        const pages = document.getElementById('pages').value;
+        const date = document.getElementById('date').value;
+        const btn = document.getElementById('startBtn');
+        const statusDiv = document.getElementById('statusMessage');
+        const listDiv = document.getElementById('logContainer');
+
+        btn.disabled = true;
+        btn.textContent = '采集请求中...';
+        statusDiv.innerHTML = '<div class="alert alert-info">正在后台启动采集任务...</div>';
+        listDiv.innerHTML = ''; // Clear logs
+
+        fetch('/api/collect', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ api_type: apiType, pages: pages, date: date }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                statusDiv.innerHTML = '<div class="alert alert-success">采集正在进行中，请稍后...</div>';
+                btn.textContent = '正在采集...';
+                document.getElementById('stopBtn').disabled = false;
+                startLogPolling();
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<div class="alert alert-danger">启动采集失败</div>';
+                btn.disabled = false;
+                btn.textContent = '采集数据';
+            });
+    }
+
+    let pollInterval;
+    function startLogPolling() {
+        if (pollInterval) clearInterval(pollInterval);
+
+        const logDiv = document.getElementById('logContainer');
+
+        pollInterval = setInterval(() => {
+            fetch('/api/logs')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.logs) {
+                        logDiv.innerText = data.logs.join('\n');
+                        logDiv.scrollTop = logDiv.scrollHeight;
+
+                        // Check if finished (simple string check)
+                        const lastLog = data.logs[data.logs.length - 1] || "";
+                        if (lastLog.includes("采集任务结束") || lastLog.includes("采集任务出错") || lastLog.includes("任务已停止")) {
+                            clearInterval(pollInterval);
+                            document.getElementById('startBtn').disabled = false;
+                            document.getElementById('startBtn').textContent = '采集数据';
+                            const stopBtn = document.getElementById('stopBtn');
+                            stopBtn.disabled = true;
+                            stopBtn.textContent = '停止采集';
+                            const statusDiv = document.getElementById('statusMessage');
+                            if (lastLog.includes("任务已停止")) {
+                                statusDiv.innerHTML = '<div class="alert alert-warning">采集任务已由用户手动停止。</div>';
+                            } else {
+                                statusDiv.innerHTML = '<div class="alert alert-success">采集任务已结束。请在IP管理页面查看结果。</div>';
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.error("Log poll error:", err));
+        }, 1000);
+    }
+
+    function stopCollection() {
+        if (!confirm('确定要停止采集任务吗?')) return;
+
+        const stopBtn = document.getElementById('stopBtn');
+        stopBtn.disabled = true;
+        stopBtn.textContent = '停止中...';
+
+        fetch('/api/stop_collection', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.innerHTML = '<div class="alert alert-warning">正在停止采集任务...</div>';
+            });
+    }
+</script>
+{% endblock %}

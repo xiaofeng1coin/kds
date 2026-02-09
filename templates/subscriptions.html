@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">订阅管理</h5>
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="bi bi-plus-lg"></i> 新增订阅
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>类型</th>
+                        <th>省份</th>
+                        <th>运营商</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="subTableBody">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">创建订阅</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addForm">
+                    <div class="mb-3">
+                        <label class="form-label">Token (8位随机，也可自定义)</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="tokenInput" placeholder="自动生成">
+                            <button class="btn btn-outline-secondary" type="button"
+                                onclick="generateToken()">生成</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">筛选类型 (不选则全选)</label>
+                        <div id="typeCheckboxes" class="d-flex flex-wrap gap-3">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">筛选省份 (不选则全选)</label>
+                        <div id="provinceCheckboxes" style="max-height: 200px; overflow-y: auto;"
+                            class="border p-2 rounded">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">筛选运营商 (不选则全选)</label>
+                        <div id="ispCheckboxes" class="d-flex flex-wrap gap-3">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveBtn" onclick="saveSubscription()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allTypes = [];
+    let allProvinces = [];
+    let allIsps = [];
+    let allSubscriptions = [];
+    let isEditMode = false;
+
+    document.addEventListener('DOMContentLoaded', loadSubscriptions);
+
+    function loadSubscriptions() {
+        fetch('/api/subscriptions/list')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    allTypes = data.all_types;
+                    allProvinces = data.all_provinces;
+                    allIsps = data.all_isps;
+                    allSubscriptions = data.subscriptions;
+                    renderTable(data.subscriptions);
+                    renderFilters();
+                } else {
+                    alert(data.message);
+                }
+            });
+    }
+
+    function renderTable(subs) {
+        const tbody = document.getElementById('subTableBody');
+        tbody.innerHTML = '';
+
+        if (subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无订阅</td></tr>';
+            return;
+        }
+
+        subs.forEach(sub => {
+            const tr = document.createElement('tr');
+
+            const typeBadges = sub.types.length ? sub.types.map(t => `<span class="badge bg-info text-dark me-1">${t}</span>`).join('') : '<span class="badge bg-secondary">全部</span>';
+            const provBadges = sub.provinces.length ? (sub.provinces.length > 5 ? `<span class="badge bg-light text-dark">${sub.provinces.length}个省份</span>` : sub.provinces.map(p => `<span class="badge bg-light text-dark me-1">${p}</span>`).join('')) : '<span class="badge bg-secondary">全部</span>';
+            const ispBadges = (sub.isps && sub.isps.length) ? sub.isps.map(i => `<span class="badge bg-success me-1">${i}</span>`).join('') : '<span class="badge bg-secondary">全部</span>';
+
+            // Links
+            const txtLink = `${window.location.protocol}//${window.location.host}/sub?${sub.token}=txt`;
+            const m3uLink = `${window.location.protocol}//${window.location.host}/sub?${sub.token}=m3u`;
+
+            tr.innerHTML = `
+            <td><code>${sub.token}</code></td>
+            <td>${typeBadges}</td>
+            <td>${provBadges}</td>
+            <td>${ispBadges}</td>
+            <td>${sub.created_at}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="copyToClipboard('${txtLink}', this)">复制 TXT</button>
+                    <button class="btn btn-outline-success" onclick="copyToClipboard('${m3uLink}', this)">复制 M3U</button>
+                    <a href="/player?url=/sub?${sub.token}=txt" target="_blank" class="btn btn-outline-primary">播放</a>
+                    <button class="btn btn-outline-warning" onclick="editSubscription('${sub.token}')">编辑</button>
+                    <button class="btn btn-outline-danger" onclick="deleteSubscription('${sub.token}')">删除</button>
+                </div>
+            </td>
+        `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderFilters() {
+        // Types
+        const typeContainer = document.getElementById('typeCheckboxes');
+        typeContainer.innerHTML = '';
+        allTypes.forEach(t => {
+            typeContainer.innerHTML += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${t}" id="type_${t}">
+                <label class="form-check-label" for="type_${t}">${t}</label>
+            </div>
+        `;
+        });
+
+        // Provinces
+        const provContainer = document.getElementById('provinceCheckboxes');
+        provContainer.innerHTML = '';
+        allProvinces.forEach(p => {
+            if (!p) return;
+            provContainer.innerHTML += `
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" value="${p}" id="prov_${p}">
+                <label class="form-check-label" for="prov_${p}">${p}</label>
+            </div>
+        `;
+        });
+
+        // ISPs
+        const ispContainer = document.getElementById('ispCheckboxes');
+        ispContainer.innerHTML = '';
+        allIsps.forEach(i => {
+            if (!i) return;
+            ispContainer.innerHTML += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${i}" id="isp_${i}">
+                <label class="form-check-label" for="isp_${i}">${i}</label>
+            </div>
+        `;
+        });
+    }
+
+    function generateToken() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('tokenInput').value = result;
+    }
+
+    function showAddModal() {
+        isEditMode = false;
+        document.getElementById('modalTitle').innerText = '创建订阅';
+        document.getElementById('saveBtn').innerText = '创建';
+
+        const tokenInput = document.getElementById('tokenInput');
+        tokenInput.value = '';
+        tokenInput.readOnly = false;
+
+        // Enable generate button
+        tokenInput.nextElementSibling.disabled = false;
+
+        // Uncheck all
+        document.querySelectorAll('#addForm input[type=checkbox]').forEach(cb => cb.checked = false);
+        generateToken(); // Pre-fill random
+        new bootstrap.Modal(document.getElementById('addModal')).show();
+    }
+
+    function editSubscription(token) {
+        const sub = allSubscriptions.find(s => s.token === token);
+        if (!sub) return;
+
+        isEditMode = true;
+        document.getElementById('modalTitle').innerText = '编辑订阅';
+        document.getElementById('saveBtn').innerText = '更新';
+
+        const tokenInput = document.getElementById('tokenInput');
+        tokenInput.value = sub.token;
+        tokenInput.readOnly = true;
+
+        // Disable generate button
+        tokenInput.nextElementSibling.disabled = true;
+
+        // Reset checks
+        document.querySelectorAll('#addForm input[type=checkbox]').forEach(cb => cb.checked = false);
+
+        // Set checks
+        if (sub.types && sub.types.length > 0) {
+            sub.types.forEach(t => {
+                const el = document.getElementById(`type_${t}`);
+                if (el) el.checked = true;
+            });
+        }
+
+        if (sub.provinces && sub.provinces.length > 0) {
+            sub.provinces.forEach(p => {
+                const el = document.getElementById(`prov_${p}`);
+                if (el) el.checked = true;
+            });
+        }
+
+        if (sub.isps && sub.isps.length > 0) {
+            sub.isps.forEach(i => {
+                const el = document.getElementById(`isp_${i}`);
+                if (el) el.checked = true;
+            });
+        }
+
+        new bootstrap.Modal(document.getElementById('addModal')).show();
+    }
+
+    function saveSubscription() {
+        const token = document.getElementById('tokenInput').value.trim();
+        if (!token) {
+            alert('Token不能为空');
+            return;
+        }
+
+        const types = Array.from(document.querySelectorAll('#typeCheckboxes input:checked')).map(cb => cb.value);
+        const provinces = Array.from(document.querySelectorAll('#provinceCheckboxes input:checked')).map(cb => cb.value);
+        const isps = Array.from(document.querySelectorAll('#ispCheckboxes input:checked')).map(cb => cb.value);
+
+        const url = isEditMode ? '/api/subscriptions/update' : '/api/subscriptions/create';
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, types, provinces, isps })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+                    loadSubscriptions(); // Reload
+                } else {
+                    alert(data.message);
+                }
+            });
+    }
+
+    function deleteSubscription(token) {
+        if (!confirm('确定删除该订阅吗？')) return;
+
+        fetch('/api/subscriptions/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadSubscriptions();
+                } else {
+                    alert('删除失败');
+                }
+            });
+    }
+
+    function copyToClipboard(text, btnElement) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => showCopiedFeedback(btnElement));
+        } else {
+            // Fallback
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showCopiedFeedback(btnElement);
+        }
+    }
+
+    function showCopiedFeedback(btn) {
+        if (!btn) return;
+        const originalText = btn.innerHTML;
+        const originalClass = btn.className;
+
+        // Change style
+        btn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+        btn.className = originalClass.replace('btn-outline-primary', 'btn-success').replace('btn-outline-success', 'btn-success');
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.className = originalClass;
+        }, 3000);
+    }
+</script>
+{% endblock %}

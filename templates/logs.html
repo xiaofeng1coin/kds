@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">系统日志</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-primary me-2" onclick="loadLogs()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新日志
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()">
+                <i class="bi bi-trash"></i> 清理日志
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="logContainer" class="bg-dark text-white p-3" style="height: 600px; overflow-y: auto; font-family: monospace; font-size: 0.9rem;">
+            正在加载日志...
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadLogs();
+    });
+
+    function loadLogs() {
+        const container = document.getElementById('logContainer');
+        container.innerHTML = '正在加载日志...';
+        
+        fetch('/api/get_system_logs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (data.logs.length === 0) {
+                        container.innerHTML = '<div class="text-muted text-center mt-5">暂无日志</div>';
+                    } else {
+                        container.innerHTML = data.logs.join('<br>');
+                        // Scroll to bottom
+                        setTimeout(() => {
+                            container.scrollTop = container.scrollHeight;
+                        }, 100);
+                    }
+                } else {
+                    container.innerHTML = `<div class="text-danger">加载失败: ${data.message}</div>`;
+                }
+            })
+            .catch(err => {
+                container.innerHTML = `<div class="text-danger">请求错误: ${err}</div>`;
+            });
+    }
+
+    function clearLogs() {
+        if (!confirm('确定要清理系统日志吗？此操作不可恢复。')) return;
+        
+        fetch('/api/clear_system_logs', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    loadLogs();
+                } else {
+                    alert('清理失败: ' + data.message);
+                }
+            })
+            .catch(err => alert('请求出错'));
+    }
+</script>
+{% endblock %}
