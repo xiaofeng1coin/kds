@@ -4,3 +4,4 @@ werkzeug
 gevent
 beautifulsoup4
 lxml
+pycryptodome
