@@ -4,346 +4,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV Web Player</title>
+    <title>IPTV 在线播放器</title>
+    <!-- 引用库文件 -->
     <script src="/static/js/hls.js"></script>
     <script src="/static/js/mpegts.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    
     <style>
         :root {
-            --bg: #0f1115;
-            --sidebar-bg: #181b21;
-            --header-bg: #1f232b;
-            --accent: #3b82f6;
-            --text: #e2e8f0;
-            --text-dim: #94a3b8;
-            --border: #2d3748;
-            --hover: #2d3748;
+            --bg-color: #f0f2f5;
+            --sidebar-bg: rgba(255, 255, 255, 0.85);
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --accent-color: #0575E6;
+            --accent-gradient: linear-gradient(135deg, #00f260 0%, #0575E6 100%);
+            --text-main: #2d3436;
+            --text-dim: #636e72;
+            --border-color: rgba(0, 0, 0, 0.05);
+            --hover-bg: rgba(5, 117, 230, 0.08);
+            --shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
 
         body {
             margin: 0;
             padding: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: "Microsoft YaHei", sans-serif;
             display: flex;
             height: 100vh;
             overflow: hidden;
+            background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,0) 0, hsla(253,16%,7%,0) 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, hsla(225,39%,30%,0) 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,0.1) 0, hsla(339,49%,30%,0) 50%);
         }
 
-        /* Sidebar */
         .sidebar {
-            width: 300px;
+            width: 320px;
             background: var(--sidebar-bg);
-            border-right: 1px solid var(--border);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-right: 1px solid rgba(255,255,255,0.5);
             display: flex;
             flex-direction: column;
+            box-shadow: var(--shadow);
+            z-index: 10;
+            transition: all 0.3s ease;
         }
 
-        /* Tabs */
         .sidebar-header {
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
+            padding: 15px;
+            background: rgba(255,255,255,0.5);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .tab-buttons {
             display: flex;
-            width: 100%;
+            background: #dfe6e9;
+            border-radius: 8px;
+            padding: 4px;
         }
 
         .tab-btn {
             flex: 1;
-            padding: 12px;
+            padding: 8px;
             background: transparent;
             border: none;
             color: var(--text-dim);
             cursor: pointer;
-            border-bottom: 2px solid transparent;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 6px;
             transition: all 0.2s;
         }
 
-        .tab-btn:hover {
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.02);
-        }
-
         .tab-btn.active {
-            color: var(--accent);
-            border-bottom: 2px solid var(--accent);
-            font-weight: bold;
-            background: rgba(59, 130, 246, 0.05);
-        }
-
-        /* Tab Content */
-        .tab-content {
-            display: none;
-            flex: 1;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .tab-content.active {
-            display: flex;
+            background: #fff;
+            color: var(--accent-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         .search-container {
-            padding: 10px;
-            border-bottom: 1px solid var(--border);
+            padding: 10px 15px;
         }
 
         .search-box {
-            background: #000;
-            border: 1px solid var(--border);
-            padding: 8px;
-            color: var(--text);
             width: 100%;
-            border-radius: 4px;
+            padding: 10px 15px;
+            border: 1px solid #dfe6e9;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.8);
+            font-weight: 500;
             box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s;
         }
 
-        .channel-list {
-            flex: 1;
-            overflow-y: auto;
+        .search-box:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(5, 117, 230, 0.1);
+            background: #fff;
         }
+
+        .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        .tab-content.active { display: flex; }
+        .channel-list, .epg-list { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #b2bec3; border-radius: 3px; }
 
         .channel-group {
-            padding: 10px 15px;
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            font-weight: bold;
-            text-transform: uppercase;
-            background: rgba(255, 255, 255, 0.02);
+            padding: 12px 15px;
+            font-size: 0.85rem;
+            color: var(--accent-color);
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.9);
             position: sticky;
             top: 0;
+            backdrop-filter: blur(5px);
+            z-index: 5;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .channel-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .channel-item:hover {
-            background: var(--hover);
-        }
-
-        .channel-item.active {
-            background: var(--accent);
-            color: white;
-        }
-
-        /* Main */
-        .main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            height: 50px;
-            background: var(--header-bg);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            justify-content: space-between;
-        }
-
-        .video-container {
-            flex: 1;
-            background: black;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            max-height: 100vh;
-        }
-
-        /* EPG Items (in Sidebar) */
-        .epg-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0;
-        }
-
-        .program-item {
             padding: 12px 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .program-time {
-            color: var(--text-dim);
-            font-family: monospace;
-            font-size: 0.9rem;
-            margin-bottom: 4px;
-        }
-
-        .program-title {
-            font-weight: 500;
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
-
-        .current-program {
-            background: rgba(59, 130, 246, 0.1);
-            border-left: 3px solid var(--accent);
-        }
-
-        .current-program .program-time {
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        /* Utils */
-        .btn {
-            padding: 6px 12px;
-            background: var(--accent);
-            border: none;
-            color: white;
-            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9rem;
-            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
         }
 
-        .btn:hover {
-            opacity: 0.9;
+        .channel-item:hover { background: var(--hover-bg); padding-left: 20px; }
+        .channel-item.active { background: var(--accent-gradient); color: white; box-shadow: 0 4px 10px rgba(5, 117, 230, 0.3); }
+
+        .program-item { padding: 15px; border-bottom: 1px solid var(--border-color); position: relative; }
+        .program-time { font-size: 0.85rem; color: var(--accent-color); margin-bottom: 4px; font-weight: bold; }
+        .program-title { font-weight: 600; line-height: 1.4; }
+        .current-program { background: #e3f2fd; border-left: 4px solid var(--accent-color); }
+
+        .main { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; }
+        .header {
+            height: 60px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 25px;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            z-index: 20;
         }
 
-        .btn-input {
-            background: #2d3748;
-            padding: 6px;
-            border: 1px solid #4a5568;
+        #currentChannelName { font-size: 1.2rem; font-weight: 700; color: #2d3436; }
+        .controls { display: flex; align-items: center; gap: 15px; }
+        
+        .control-input {
+            padding: 8px 12px;
+            border-radius: 20px;
+            border: 1px solid #dfe6e9;
+            font-size: 0.85rem;
+            width: 200px;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        
+        .control-input:focus { width: 250px; border-color: var(--accent-color); background: #fff; outline: none; }
+
+        .btn {
+            padding: 8px 16px;
+            background: var(--accent-gradient);
             color: white;
-            border-radius: 4px;
-            margin-right: 5px;
-            width: 250px;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(5, 117, 230, 0.25); }
+        .btn-secondary { background: #dfe6e9; color: var(--text-main); }
 
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
+        .video-container { flex: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        video { width: 100%; height: 100%; max-height: calc(100vh - 60px); outline: none; }
 
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
+        .toggle-switch { display: flex; align-items: center; cursor: pointer; font-size: 0.9rem; color: var(--text-dim); }
+        .toggle-switch input { margin-right: 8px; accent-color: var(--accent-color); }
 
-        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                left: -300px;
-                top: 0;
-                bottom: 0;
-                z-index: 100;
-                transition: left 0.3s;
-                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-            }
-
-            .sidebar.open {
-                left: 0;
-            }
-
-            #sidebar-toggle {
-                display: block !important;
-            }
-
-            #sidebar-overlay {
-                display: none;
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 90;
-            }
-
-            #sidebar-overlay.active {
-                display: block;
-            }
-
-            .header {
-                padding: 0 10px;
-            }
-
-            #currentChannelName {
-                font-size: 1rem;
-                flex: 1;
-                margin-left: 10px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .btn-input {
-                width: 100px;
-                font-size: 0.8rem;
-            }
-
-            .btn {
-                font-size: 0.8rem;
-                padding: 4px 8px;
-            }
-
-            /* Hide Return button on mobile to save space */
-            .header>div:last-child>a.btn {
-                display: none;
-            }
-
-            /* Compacting the controls */
-            .header>div:last-child label {
-                margin-right: 5px !important;
-                font-size: 0.8rem;
-            }
+            .sidebar { position: absolute; left: -320px; top: 0; bottom: 0; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            .sidebar.open { transform: translateX(320px); }
+            #sidebar-toggle { display: block !important; margin-right: 15px; color: var(--text-main); background: none; border: none; font-size: 1.5rem; }
+            .control-input { display: none; }
+            #currentChannelName { font-size: 1rem; }
+            .header { padding: 0 15px; }
+            .btn { padding: 6px 12px; font-size: 0.8rem; }
         }
-    </style>
-    }
     </style>
 </head>
 
 <body>
-    <!-- Mobile Overlay -->
-    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div id="sidebar-overlay" onclick="toggleSidebar()" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.3); z-index:9; display:none;"></div>
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="tab-buttons">
-                <button class="tab-btn active" onclick="switchTab('channels')" id="btn-channels">频道列表</button>
-                <button class="tab-btn" onclick="switchTab('epg')" id="btn-epg">EPG</button>
+                <button class="tab-btn active" onclick="switchTab('channels')" id="btn-channels">
+                    <i class="bi bi-list-ul"></i> 频道列表
+                </button>
+                <button class="tab-btn" onclick="switchTab('epg')" id="btn-epg">
+                    <i class="bi bi-calendar-event"></i> 节目单
+                </button>
             </div>
         </div>
-        <!-- ... tabs ... -->
-        <!-- Channels Tab -->
+
         <div id="tab-channels" class="tab-content active">
             <div class="search-container">
                 <input type="text" class="search-box" placeholder="搜索频道..." onkeyup="filterChannels(this.value)">
             </div>
             <div class="channel-list" id="channelList">
-                <div style="padding:20px; text-align:center; color:gray">加载中...</div>
+                <div style="padding: 30px; text-align: center; color: var(--text-dim);">
+                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+                    <div style="margin-top: 10px;">正在加载...</div>
+                </div>
             </div>
         </div>
 
-        <!-- EPG Tab -->
         <div id="tab-epg" class="tab-content">
             <div class="epg-list" id="epgPanel">
-                <div style="color:gray; padding:20px; text-align:center; margin-top: 50px;">
-                    <div>请选择频道以查看节目单</div>
-                    <div style="font-size:0.8rem; margin-top:10px; opacity:0.6;">(需要加载EPG源)</div>
+                <div style="padding: 40px 20px; text-align: center; color: var(--text-dim);">
+                    <i class="bi bi-tv" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                    请先选择一个频道<br>以查看节目信息
                 </div>
             </div>
         </div>
@@ -351,24 +245,31 @@
 
     <div class="main">
         <div class="header">
-            <button id="sidebar-toggle"
-                style="display:none; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;"
-                onclick="toggleSidebar()">☰</button>
-            <div style="font-weight: bold; font-size: 1.1rem; margin-left:10px;" id="currentChannelName">Web Player
+            <div style="display: flex; align-items: center;">
+                <button id="sidebar-toggle" style="display:none;" onclick="toggleSidebar()">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div id="currentChannelName">IPTV 播放器</div>
             </div>
-            <div style="display:flex; align-items:center;">
-                <label
-                    style="display:flex; align-items:center; margin-right:15px; font-size:0.9rem; color: #cbd5e1; cursor:pointer;">
-                    <input type="checkbox" id="useProxy" style="margin-right:5px;"> CORS代理
+            
+            <div class="controls">
+                <label class="toggle-switch" title="开启跨域代理">
+                    <input type="checkbox" id="useProxy"> <span>代理</span>
                 </label>
-                <input type="text" id="epgUrl" class="btn-input" placeholder="输入XMLTV EPG地址..." value="{{ epg_url }}">
-                <button class="btn" onclick="setEPG()">加载EPG</button>
-                <a href="/subscriptions" class="btn" style="margin-left: 15px; background: #4b5563;">返回订阅</a>
+                
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="epgUrl" class="control-input" placeholder="XMLTV EPG 地址..." value="{{ epg_url }}">
+                    <button class="btn" onclick="setEPG()">加载 EPG</button>
+                </div>
+                
+                <a href="/subscriptions" class="btn btn-secondary">
+                    <i class="bi bi-box-arrow-right"></i> 退出
+                </a>
             </div>
         </div>
 
         <div class="video-container">
-            <video id="video" controls autoplay></video>
+            <video id="video" controls autoplay playsinline></video>
         </div>
     </div>
 
@@ -377,38 +278,30 @@
         let allChannels = [];
         let currentGroup = '';
 
-        // Init
         window.onload = function () {
             const params = new URLSearchParams(window.location.search);
             const playlistUrl = params.get('url');
             const playlistName = params.get('name');
 
-            if (playlistName) document.title = `${playlistName} - Web Player`;
+            if (playlistName) document.title = `${playlistName} - IPTV 播放器`;
 
-            // Load saved EPG or Config EPG (Priority: Config > Saved)
             const serverEpg = document.getElementById('epgUrl').value;
             const savedEpg = localStorage.getItem('epg_url');
-
             if (!serverEpg && savedEpg) {
                 document.getElementById('epgUrl').value = savedEpg;
-            } else if (serverEpg) {
-                // If server provided EPG, use it and update local? Or just use it temporarily.
-                // Let's rely on input value which is pre-filled by template
             }
 
             if (playlistUrl) {
                 loadPlaylist(playlistUrl);
             } else {
-                document.getElementById('channelList').innerHTML = '<div style="padding:20px; text-align:center;">请从订阅页面选择播放</div>';
+                document.getElementById('channelList').innerHTML = 
+                    '<div style="padding:40px; text-align:center; color:#999;">请从订阅页面选择播放</div>';
             }
         };
 
         function switchTab(tab) {
-            // Update Buttons
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + tab).classList.add('active');
-
-            // Update Content
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
         }
@@ -419,13 +312,16 @@
                 .then(text => {
                     allChannels = parsePlaylist(text);
                     renderChannels(allChannels);
-                    if (allChannels.length > 0) playChannel(0);
+                    if (allChannels.length > 0) {
+                        document.getElementById('currentChannelName').textContent = "准备就绪";
+                    } else {
+                        alert("播放列表为空");
+                    }
                 })
                 .catch(e => alert("无法加载播放列表: " + e));
         }
 
         function parsePlaylist(content) {
-            // Detect format
             if (content.indexOf('#EXTM3U') !== -1 || content.indexOf('#EXTINF') !== -1) {
                 return parseM3U(content);
             } else {
@@ -436,34 +332,19 @@
         function parseTXT(content) {
             const lines = content.split('\n');
             const channels = [];
-            let currentGroup = '其他';
+            let currentGroup = '其他频道';
 
             lines.forEach(line => {
                 line = line.trim();
                 if (!line) return;
-
                 if (line.includes(',#genre#')) {
                     currentGroup = line.split(',')[0].trim();
                 } else {
-                    // split by comma: Name,URL
-                    // But be careful if URL has comma? usually not for http.
-                    // robust split: first comma
                     const commaIdx = line.indexOf(',');
                     if (commaIdx !== -1) {
                         const name = line.substring(0, commaIdx).trim();
                         const url = line.substring(commaIdx + 1).trim();
-
-                        // Fix for weird timestamps lines in some txts?
-                        // User example: "2025-12-29 18:30:43,http://..."
-                        // Maybe filter out time lines if they don't look like channels?
-                        // But "2025-12-29..." can be a name technically.
-                        // Let's assume everything else is a channel.
-
-                        channels.push({
-                            name: name,
-                            group: currentGroup,
-                            url: url
-                        });
+                        channels.push({ name: name, group: currentGroup, url: url });
                     }
                 }
             });
@@ -478,18 +359,15 @@
             lines.forEach(line => {
                 line = line.trim();
                 if (!line) return;
-
                 if (line.startsWith('#EXTINF')) {
-                    // Parse metdata
                     const groupMatch = line.match(/group-title="([^"]*)"/);
                     const logoMatch = line.match(/tvg-logo="([^"]*)"/);
                     const idMatch = line.match(/tvg-id="([^"]*)"/);
                     const nameParts = line.split(',');
                     const name = nameParts[nameParts.length - 1].trim();
-
                     current = {
                         name: name,
-                        group: groupMatch ? groupMatch[1] : '其他',
+                        group: groupMatch ? groupMatch[1] : '其他频道',
                         logo: logoMatch ? logoMatch[1] : null,
                         id: idMatch ? idMatch[1] : null,
                         url: null
@@ -499,13 +377,6 @@
                         current.url = line;
                         channels.push(current);
                         current = {};
-                    } else if (line.indexOf('://') > 0) {
-                        // Plain url without EXTINF
-                        channels.push({
-                            name: 'Channel ' + (channels.length + 1),
-                            group: '其他',
-                            url: line
-                        });
                     }
                 }
             });
@@ -531,9 +402,12 @@
                 groupChannels.forEach(ch => {
                     const el = document.createElement('div');
                     el.className = 'channel-item';
-                    el.onclick = () => playChannel(ch.index);
                     el.id = `ch-${ch.index}`;
-                    el.innerHTML = `<span>${ch.name}</span>`;
+                    el.onclick = () => playChannel(ch.index);
+                    el.innerHTML = `
+                        <i class="bi bi-play-circle-fill" style="margin-right:10px; opacity:0.5;"></i>
+                        <span>${ch.name}</span>
+                    `;
                     container.appendChild(el);
                 });
             }
@@ -543,7 +417,6 @@
             const ch = allChannels[index];
             if (!ch) return;
 
-            // UI Update
             document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
             const activeEl = document.getElementById(`ch-${index}`);
             if (activeEl) {
@@ -553,98 +426,78 @@
 
             document.getElementById('currentChannelName').textContent = ch.name;
 
-            // Proxy Check
             const useProxy = document.getElementById('useProxy').checked;
             const playUrl = useProxy ? `/api/proxy?url=${encodeURIComponent(ch.url)}` : ch.url;
-
-            // Video Playback
             const video = document.getElementById('video');
 
-            // Clean up previous players
-            if (window.hlsPlayer) {
-                window.hlsPlayer.destroy();
-                window.hlsPlayer = null;
-            }
-            if (window.mpegtsPlayer) {
-                window.mpegtsPlayer.destroy();
-                window.mpegtsPlayer = null;
-            }
+            if (window.hlsPlayer) { window.hlsPlayer.destroy(); window.hlsPlayer = null; }
+            if (window.mpegtsPlayer) { window.mpegtsPlayer.destroy(); window.mpegtsPlayer = null; }
 
-            // Detection Logic
             const isMpegTs = playUrl.includes('/live') || playUrl.includes('.ts') || playUrl.includes('.flv') || playUrl.includes('/rtp/') || playUrl.includes('/udp/');
 
             if (isMpegTs && mpegts.getFeatureList().mseLivePlayback) {
-                console.log("Using mpegts.js for: " + playUrl);
-                window.mpegtsPlayer = mpegts.createPlayer({
-                    type: 'mpegts',
-                    isLive: true,
-                    url: playUrl
-                });
+                console.log("Mode: mpegts.js");
+                window.mpegtsPlayer = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: playUrl });
                 window.mpegtsPlayer.attachMediaElement(video);
                 window.mpegtsPlayer.load();
-                window.mpegtsPlayer.play();
-            }
-            else if (Hls.isSupported()) {
-                console.log("Using hls.js for: " + playUrl);
+                window.mpegtsPlayer.play().catch(e => console.log(e));
+            } else if (Hls.isSupported()) {
+                console.log("Mode: hls.js");
                 window.hlsPlayer = new Hls();
                 window.hlsPlayer.loadSource(playUrl);
                 window.hlsPlayer.attachMedia(video);
                 window.hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function () {
-                    video.play();
+                    video.play().catch(e => console.log(e));
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                console.log("Mode: native");
                 video.src = playUrl;
-                video.addEventListener('loadedmetadata', function () {
-                    video.play();
-                });
+                video.play().catch(e => console.log(e));
             }
 
-            // EPG Check
             loadChannelEPG(ch);
-
-            // Note: We don't auto-switch tabs. User stays on list usually.
+            
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+                document.getElementById('sidebar-overlay').style.display = 'none';
+            }
         }
 
         function setEPG() {
             const url = document.getElementById('epgUrl').value.trim();
             if (!url) return;
-
             localStorage.setItem('epg_url', url);
             fetch('/api/epg/load', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: url })
             })
-                .then(r => r.json())
-                .then(d => {
-                    if (d.error) alert('加载EPG失败: ' + d.error);
-                    else {
-                        alert(d.message);
-                        // Reload current channel EPG
-                        const current = document.querySelector('.channel-item.active');
-                        if (current) {
-                            const idx = parseInt(current.id.replace('ch-', ''));
-                            loadChannelEPG(allChannels[idx]);
-                        }
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) alert('EPG 错误: ' + d.error);
+                else {
+                    alert(d.message);
+                    const current = document.querySelector('.channel-item.active');
+                    if (current) {
+                        const idx = parseInt(current.id.replace('ch-', ''));
+                        loadChannelEPG(allChannels[idx]);
                     }
-                });
+                }
+            });
         }
 
         function loadChannelEPG(channel) {
             const container = document.getElementById('epgPanel');
-            container.innerHTML = '<div style="padding:20px; text-align:center; color:gray;">正在查询节目单...</div>';
+            container.innerHTML = '<div style="padding:20px; text-align:center;"><div class="spinner-border spinner-border-sm text-secondary"></div> 正在查询...</div>';
 
-            const params = new URLSearchParams({
-                name: channel.name,
-                id: channel.id || ''
-            });
+            const params = new URLSearchParams({ name: channel.name, id: channel.id || '' });
 
             fetch(`/api/epg/channel?${params}`)
                 .then(r => r.json())
                 .then(data => {
                     const programs = data.programs;
                     if (!programs || programs.length === 0) {
-                        container.innerHTML = '<div style="padding:20px; text-align:center; color:gray;">未找到节目信息</div>';
+                        container.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">暂无节目信息</div>';
                         return;
                     }
 
@@ -655,21 +508,15 @@
                     programs.forEach(p => {
                         const row = document.createElement('div');
                         row.className = 'program-item';
-
-                        // Parse Time
+                        
                         const startDate = parseXMLTVDate(p.start);
                         const endDate = parseXMLTVDate(p.stop);
+                        let timeStr = startDate ? startDate.toTimeString().substr(0, 5) : "??:??";
 
-                        let timeStr = "??:??";
-                        if (startDate) {
-                            timeStr = startDate.toTimeString().substr(0, 5);
-                        }
-
-                        // Check if current
                         if (startDate && endDate && now >= startDate && now < endDate) {
                             row.classList.add('current-program');
                             row.innerHTML = `
-                                <div class="program-time">${timeStr} <span style="font-size:0.8em; margin-left:5px;">当前播放</span></div>
+                                <div class="program-time">${timeStr} <span class="badge bg-primary" style="font-size:0.6em; vertical-align:text-top;">直播中</span></div>
                                 <div class="program-title">${p.title}</div>
                             `;
                             activeEl = row;
@@ -679,15 +526,10 @@
                                 <div class="program-title">${p.title}</div>
                             `;
                         }
-
                         container.appendChild(row);
                     });
 
-                    // Auto scroll to current
-                    if (activeEl) {
-                        // Small delay to ensure render
-                        setTimeout(() => activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
-                    }
+                    if (activeEl) setTimeout(() => activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' }), 100);
                 });
         }
 
@@ -698,31 +540,25 @@
                 if (el.textContent.toLowerCase().includes(query)) el.style.display = 'flex';
                 else el.style.display = 'none';
             });
-            // Also hide empty groups maybe?
         }
 
         function parseXMLTVDate(str) {
-            // Format: YYYYMMDDhhmmss [+HHMM]
             if (!str || str.length < 14) return null;
-
             const year = parseInt(str.substr(0, 4));
             const month = parseInt(str.substr(4, 2)) - 1;
             const day = parseInt(str.substr(6, 2));
             const hour = parseInt(str.substr(8, 2));
             const minute = parseInt(str.substr(10, 2));
             const second = parseInt(str.substr(12, 2));
-
-            // Basic date
-            let date = new Date(year, month, day, hour, minute, second);
-
-            return date;
+            return new Date(year, month, day, hour, minute, second);
         }
 
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebar-overlay').classList.toggle('active');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
         }
     </script>
 </body>
-
 </html>

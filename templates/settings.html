@@ -1,219 +1,164 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white">
-        <h5 class="mb-0">系统设置</h5>
-    </div>
-    <div class="card-body">
-        <form id="settingsForm">
-            <div class="mb-3 row mt-3">
-                <label class="col-sm-2 col-form-label">请求超时 (秒)</label>
-                <div class="col-sm-4">
-                    <input type="number" class="form-control" value="10" disabled title="暂不支持修改">
-                </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="brand-font"><i class="bi bi-gear-wide-connected text-primary"></i> 核心配置</h5>
             </div>
+            <div class="card-body">
+                <form id="settingsForm">
+                    <!-- Config Groups -->
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">网络请求</label>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-light">超时时间 (秒)</span>
+                            <input type="number" class="form-control" value="10" disabled>
+                        </div>
+                    </div>
 
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">失效阈值</label>
-                <div class="col-sm-4">
-                    <input type="number" class="form-control" id="failureThreshold" value="3">
-                </div>
-                <div class="col-sm-6 text-muted pt-2 fs-6">
-                    验证失效超过此次数将标记为失效（默认3）
-                </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">验证策略</label>
+                        <div class="row align-items-center">
+                            <div class="col-8">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">失效阈值</span>
+                                    <input type="number" class="form-control" id="failureThreshold" value="3">
+                                </div>
+                                <div class="form-text">连续检测失败达到此次数将标记为失效</div>
+                            </div>
+                            <div class="col-4 text-end">
+                                <div class="form-check form-switch d-inline-block">
+                                    <input class="form-check-input" type="checkbox" id="autoDeleteFailed">
+                                    <label class="form-check-label" for="autoDeleteFailed">自动删除失效源</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">播放列表增强</label>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" id="epgUrl" placeholder="EPG 接口地址 (xml/json)">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control" id="logoUrl" placeholder="台标 Base URL">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-primary px-4" onclick="saveSettings()">
+                            <i class="bi bi-save"></i> 保存更改
+                        </button>
+                    </div>
+                </form>
             </div>
+        </div>
 
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">自动删除</label>
-                <div class="col-sm-4 pt-2">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="autoDeleteFailed">
-                        <label class="form-check-label" for="autoDeleteFailed">自动删除失效IP</label>
+        <!-- System Maintenance -->
+        <div class="card border-danger border-opacity-25">
+            <div class="card-header bg-danger bg-opacity-10 border-0 pt-3">
+                <h5 class="brand-font text-danger"><i class="bi bi-shield-lock"></i> 维护与安全</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">API 管理</label>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-success btn-sm flex-grow-1" onclick="updateApi()">更新配置</button>
+                            <button class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="resetApi()">重置默认</button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">版本</label>
+                        <button class="btn btn-outline-info btn-sm w-100" onclick="checkUpdate()">检查更新</button>
                     </div>
                 </div>
-            </div>
-
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">EPG 接口</label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" id="epgUrl"
-                        placeholder="例如: https://live.fanmingming.com/e.xml">
-                    <div class="form-text">用于生成的M3U文件头部 x-tvg-url</div>
+                
+                <hr class="my-4">
+                
+                <h6 class="text-muted mb-3">修改管理员密码</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <input type="password" class="form-control form-control-sm" id="oldPwd" placeholder="原密码">
+                    </div>
+                    <div class="col-6">
+                        <input type="password" class="form-control form-control-sm" id="newPwd" placeholder="新密码">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-warning btn-sm" onclick="changePassword()">修改密码</button>
+                    <button class="btn btn-danger btn-sm" onclick="location.href='/logout'">退出登录</button>
                 </div>
             </div>
-
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">台标地址</label>
-                <div class="col-sm-10">
-                    <input type="text" class="form-control" id="logoUrl"
-                        placeholder="例如: https://live.fanmingming.com/tv/">
-                    <div class="form-text">程序会自动在末尾拼接 {节目名}.png</div>
-                </div>
-            </div>
-
-            <div class="row mt-4">
-                <div class="col-sm-10 offset-sm-2">
-                    <button type="button" class="btn btn-primary" onclick="saveSettings()">保存设置</button>
-                </div>
-            </div>
-
-            <hr class="my-4">
-
-            <h5 class="mb-3">API 设置</h5>
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">版本检测</label>
-                <div class="col-sm-10">
-                    <button type="button" class="btn btn-info text-white" onclick="checkUpdate()">检查更新</button>
-                    <div id="updateInfo" class="mt-2 text-muted"
-                        style="display:none; background: #f8f9fa; padding: 10px; border-radius: 5px;"></div>
-                </div>
-            </div>
-
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">API 配置</label>
-                <div class="col-sm-10">
-                    <button type="button" class="btn btn-success" onclick="updateApi()">更新API配置</button>
-                    <button type="button" class="btn btn-secondary ms-2" onclick="resetApi()">恢复默认配置</button>
-                    <div class="form-text">更新或恢复配置后，下次采集生效</div>
-                </div>
-            </div>
-
-            <hr class="my-4">
-
-            <h5 class="mb-3">修改密码</h5>
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">原密码</label>
-                <div class="col-sm-4">
-                    <input type="password" class="form-control" id="oldPwd">
-                </div>
-            </div>
-            <div class="mb-3 row">
-                <label class="col-sm-2 col-form-label">新密码</label>
-                <div class="col-sm-4">
-                    <input type="password" class="form-control" id="newPwd">
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-10 offset-sm-2">
-                    <button type="button" class="btn btn-warning" onclick="changePassword()">修改密码</button>
-                    <button type="button" class="btn btn-danger ms-2"
-                        onclick="window.location.href='/logout'">退出登录</button>
-                </div>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <script>
-    // Load settings on init
     loadSettings();
-
     function loadSettings() {
-        fetch('/api/get_settings')
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    document.getElementById('failureThreshold').value = data.failure_threshold;
-                    document.getElementById('autoDeleteFailed').checked = data.auto_delete_failed;
-                    document.getElementById('epgUrl').value = data.epg_url || '';
-                    document.getElementById('logoUrl').value = data.logo_url || '';
-                }
-            });
+        fetch('/api/get_settings').then(r=>r.json()).then(data => {
+            document.getElementById('failureThreshold').value = data.failure_threshold;
+            document.getElementById('autoDeleteFailed').checked = data.auto_delete_failed;
+            document.getElementById('epgUrl').value = data.epg_url || '';
+            document.getElementById('logoUrl').value = data.logo_url || '';
+        });
     }
 
     function saveSettings() {
-        const threshold = document.getElementById('failureThreshold').value;
-        const autoDelete = document.getElementById('autoDeleteFailed').checked;
-        const epg = document.getElementById('epgUrl').value;
-        const logo = document.getElementById('logoUrl').value;
-
-        // Fetch current to merge? No, we updated backend to Partial Update. 
-        // We can just send what we have.
-
+        const payload = {
+            failure_threshold: document.getElementById('failureThreshold').value,
+            auto_delete_failed: document.getElementById('autoDeleteFailed').checked,
+            epg_url: document.getElementById('epgUrl').value,
+            logo_url: document.getElementById('logoUrl').value
+        };
         fetch('/api/save_settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                failure_threshold: threshold,
-                auto_delete_failed: autoDelete,
-                epg_url: epg,
-                logo_url: logo
-            })
-        })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-            })
-            .catch(err => alert('保存失败'));
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(r=>r.json()).then(d=>Swal.fire('成功', d.message, 'success'));
     }
 
     function changePassword() {
         const oldPwd = document.getElementById('oldPwd').value;
         const newPwd = document.getElementById('newPwd').value;
-
-        if (!oldPwd || !newPwd) {
-            alert('请填写完整');
-            return;
-        }
-
+        if(!oldPwd || !newPwd) return Swal.fire('错误', '请填写密码', 'error');
+        
         fetch('/api/change_password', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('修改成功，请重新登录');
-                    window.location.href = '/logout';
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(err => alert('请求出错'));
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({old_password: oldPwd, new_password: newPwd})
+        }).then(r=>r.json()).then(d => {
+            if(d.status === 'success') {
+                Swal.fire('成功', '请重新登录', 'success').then(() => location.href='/logout');
+            } else {
+                Swal.fire('失败', d.message, 'error');
+            }
+        });
+    }
+    
+    function updateApi() {
+        asyncSwalConfirm('更新API?', '将从服务器获取最新配置').then(res => {
+            if(res) fetch('/api/update_api', {method:'POST'}).then(r=>r.json()).then(d=>Swal.fire(d.message));
+        });
+    }
+    
+    function resetApi() {
+        asyncSwalConfirm('重置API?', '恢复至初始状态').then(res => {
+            if(res) fetch('/api/reset_api', {method:'POST'}).then(r=>r.json()).then(d=>Swal.fire(d.message));
+        });
     }
 
     function checkUpdate() {
-        const infoDiv = document.getElementById('updateInfo');
-        infoDiv.style.display = 'block';
-        infoDiv.innerHTML = '正在检查更新...';
-
-        fetch('/api/check_update')
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const d = data.data;
-                    infoDiv.innerHTML = `<strong>最新版本: ${d.version}</strong><br><pre style="margin-top:5px; white-space: pre-wrap;">${d.message}</pre>`;
-                } else {
-                    infoDiv.innerHTML = `<span class="text-danger">检查失败: ${data.message}</span>`;
-                }
-            })
-            .catch(err => {
-                infoDiv.innerHTML = `<span class="text-danger">请求出错</span>`;
-            });
-    }
-
-    function updateApi() {
-        if (!confirm('确定要从服务器更新API配置吗？这可能会覆盖您当前的自定义设置。')) return;
-
-        fetch('/api/update_api', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-            })
-            .catch(err => alert('请求出错'));
-    }
-
-    function resetApi() {
-        if (!confirm('确定要将API配置恢复为默认值吗？')) return;
-
-        fetch('/api/reset_api', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-            })
-            .catch(err => alert('请求出错'));
+        fetch('/api/check_update').then(r=>r.json()).then(data => {
+            if(data.status === 'success') {
+                Swal.fire({ title: '检查结果', html: `<pre>${data.data.message}</pre>`, icon: 'info' });
+            } else {
+                Swal.fire('错误', data.message, 'error');
+            }
+        });
     }
 </script>
 {% endblock %}

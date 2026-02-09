@@ -4,91 +4,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV-Spider</title>
+    <title>IPTV-Spider | 控制中心</title>
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <!-- SweetAlert2 (无边框主题) -->
+    <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-borderless/borderless.css" rel="stylesheet">
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <!-- 自定义样式 -->
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet"> 
+    
     <style>
-        body {
-            background-color: #f8f9fa;
-        }
-
-        .container-main {
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
-            padding-bottom: 20px;
-        }
-
-        .footer {
-            text-align: center;
-            color: #6c757d;
-            font-size: 14px;
-            background-color: #fff;
-            border-top: 1px solid #dee2e6;
-            padding: 15px 0;
-            margin-top: auto;
-        }
+        .swal2-popup { border-radius: 16px !important; font-family: "Microsoft YaHei", sans-serif; }
     </style>
 </head>
 
-<body class="d-flex flex-column min-vh-100">
-    <div class="container container-main flex-grow-1 mt-4">
-        <h3 class="mb-4 text-center pt-3">IPTV-Spider <small class="text-muted" style="font-size: 0.5em;">v2.0.4</small>
-        </h3>
-        <ul class="nav nav-tabs mb-4">
-            <li class="nav-item">
-                <a class="nav-link {% if active_tab == 'auto' %}active{% endif %}" href="{{ url_for('auto') }}">采集</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if active_tab == 'ip_manager' %}active{% endif %}"
-                    href="{{ url_for('ip_manager') }}">IP管理</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if active_tab == 'subscriptions' %}active{% endif %}"
-                    href="{{ url_for('subscriptions') }}">订阅</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{{ url_for('logs') }}">日志</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {% if active_tab == 'settings' %}active{% endif %}"
-                    href="{{ url_for('settings') }}">设置</a>
-            </li>
+<body class="animate__animated animate__fadeIn">
+    <div class="container container-main flex-grow-1">
+        <div class="header-section">
+            <h2 class="brand-font display-5 fw-bold text-gradient" style="background: -webkit-linear-gradient(#00f260, #0575E6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                IPTV-Spider <small style="font-size: 0.4em; color: #a4b0be; -webkit-text-fill-color: initial;">v2.0.4</small>
+            </h2>
+        </div>
 
-        </ul>
+        <div class="d-flex justify-content-center">
+            <ul class="nav nav-tabs shadow-sm">
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'auto' %}active{% endif %}" href="{{ url_for('auto') }}">
+                        <i class="bi bi-cpu"></i> 采集中心
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'ip_manager' %}active{% endif %}" href="{{ url_for('ip_manager') }}">
+                        <i class="bi bi-hdd-network"></i> IP 矩阵
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'subscriptions' %}active{% endif %}" href="{{ url_for('subscriptions') }}">
+                        <i class="bi bi-rss"></i> 订阅源
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" href="{{ url_for('logs') }}">
+                        <i class="bi bi-journal-code"></i> 系统日志
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if active_tab == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
+                        <i class="bi bi-sliders"></i> 系统设置
+                    </a>
+                </li>
+            </ul>
+        </div>
 
         {% block content %}{% endblock %}
     </div>
 
-    <div class="footer w-100">
-        Power by cqshushu | 公众号：医工学习日志
+    <div class="footer">
+        <!-- 版权信息已移除 -->
     </div>
 
-    <!-- Version Check Script -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script>
+        // 全局工具：使用 SweetAlert2 替换原生弹窗
+        window.nativeAlert = window.alert;
+        window.alert = function(msg) {
+            Swal.fire({
+                title: '提示',
+                text: msg,
+                icon: 'info',
+                confirmButtonText: '确定',
+                confirmButtonColor: '#0575E6',
+                backdrop: `rgba(0,0,0,0.2)`
+            });
+        };
+
+        async function asyncSwalConfirm(title, text) {
+            const result = await Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff6b6b',
+                cancelButtonColor: '#636e72',
+                confirmButtonText: '执行',
+                cancelButtonText: '取消',
+                background: '#fff',
+                customClass: { popup: 'shadow-lg' }
+            });
+            return result.isConfirmed;
+        }
+
+        // 版本检测
         document.addEventListener('DOMContentLoaded', function () {
             const CURRENT_VERSION = '2.0.4';
             const CHECK_URL = 'https://iptv.cqshushu.com/api/iptv_spider_version.php';
 
-
-            function checkVersion() {
-                fetch(CHECK_URL)
-                    .then(r => r.json())
-                    .then(data => {
-                        const remoteVersion = data.version;
-                        if (remoteVersion > CURRENT_VERSION) {
-                            const seenVersion = localStorage.getItem('last_seen_version');
-                            if (seenVersion !== remoteVersion) {
-                                alert(`发现新版本 v${remoteVersion}！\n${data.message || ''}`);
-                                localStorage.setItem('last_seen_version', remoteVersion);
-                            }
+            fetch(CHECK_URL)
+                .then(r => r.json())
+                .then(data => {
+                    const remoteVersion = data.version;
+                    if (remoteVersion > CURRENT_VERSION) {
+                        const seenVersion = localStorage.getItem('last_seen_version');
+                        if (seenVersion !== remoteVersion) {
+                            Swal.fire({
+                                title: `发现新版本 v${remoteVersion}`,
+                                text: data.message || '建议及时更新以获取最佳体验',
+                                icon: 'success',
+                                toast: true,
+                                position: 'top-end',
+                                showConfirmButton: false,
+                                timer: 5000
+                            });
+                            localStorage.setItem('last_seen_version', remoteVersion);
                         }
-                    })
-                    .catch(e => console.log('Check version failed', e));
-            }
-
-            checkVersion();
+                    }
+                })
+                .catch(e => console.log('Version check skipped'));
         });
     </script>
 </body>
-
 </html>
